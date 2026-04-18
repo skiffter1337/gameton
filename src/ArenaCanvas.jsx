@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import bloodUrl from './assets/blood.png';
 import buildUrl from './assets/build.png';
 import cockUrl from './assets/cock.png';
 import mountainUrl from './assets/mountain.png';
@@ -41,6 +42,7 @@ const UNIT_IMAGE_URLS = {
   main: tigerUrl,
   mountain: mountainUrl,
   plant: palmUrl,
+  storm: bloodUrl,
 };
 
 function useCanvasSize(ref) {
@@ -619,7 +621,82 @@ function drawStormTrail(ctx, trail, camera, width, height) {
   ctx.restore();
 }
 
-function drawStorm(ctx, storm, camera, width, height, time, turnProgress, trail) {
+function drawStormVortices(ctx, image, screen, radius, time, forming) {
+  if (!canDrawImage(image)) {
+    return false;
+  }
+
+  const frameSize = image.naturalHeight || 24;
+  const frameCount = Math.max(1, Math.floor(image.naturalWidth / frameSize));
+  const spriteCount = clamp(Math.round(radius / 2.4), 20, 44);
+  const coreCount = clamp(Math.round(radius / 4.8), 8, 18);
+  const phase = time * 0.0025;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(screen.x, screen.y, radius * 0.98, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.shadowColor = '#FF005C';
+  ctx.shadowBlur = 10;
+
+  for (let i = 0; i < spriteCount; i += 1) {
+    const ring = i % 5;
+    const direction = ring % 2 === 0 ? 1 : -1;
+    const angle = i * 2.399 + phase * direction * (1.2 + ring * 0.16);
+    const orbit = radius * (0.18 + ring * 0.13 + Math.sin(phase * 2.3 + i) * 0.04);
+    const x = screen.x + Math.cos(angle) * orbit;
+    const y = screen.y + Math.sin(angle * 1.15) * orbit * 0.74;
+    const frame = (Math.floor(time * 0.018 + i * 1.9) % frameCount) * frameSize;
+    const spriteSize = clamp(radius * (0.12 + ring * 0.018), 12, 34);
+
+    ctx.save();
+    ctx.globalAlpha = forming ? 0.5 : 0.82;
+    ctx.translate(x, y);
+    ctx.rotate(angle + phase * direction * 3.1);
+    ctx.drawImage(
+      image,
+      frame,
+      0,
+      frameSize,
+      frameSize,
+      -spriteSize / 2,
+      -spriteSize / 2,
+      spriteSize,
+      spriteSize,
+    );
+    ctx.restore();
+  }
+
+  for (let i = 0; i < coreCount; i += 1) {
+    const angle = phase * -2.1 + i * 2.17;
+    const orbit = radius * (0.06 + (i % 4) * 0.045);
+    const frame = (Math.floor(time * 0.022 + i * 2.4) % frameCount) * frameSize;
+    const spriteSize = clamp(radius * (0.17 + (i % 3) * 0.025), 14, 38);
+
+    ctx.save();
+    ctx.globalAlpha = forming ? 0.56 : 0.9;
+    ctx.translate(screen.x + Math.cos(angle) * orbit, screen.y + Math.sin(angle) * orbit * 0.72);
+    ctx.rotate(-angle + phase * 4);
+    ctx.drawImage(
+      image,
+      frame,
+      0,
+      frameSize,
+      frameSize,
+      -spriteSize / 2,
+      -spriteSize / 2,
+      spriteSize,
+      spriteSize,
+    );
+    ctx.restore();
+  }
+
+  ctx.restore();
+  return true;
+}
+
+function drawStorm(ctx, storm, camera, width, height, time, turnProgress, trail, unitImages) {
   if (!Array.isArray(storm.position)) {
     return;
   }
@@ -635,7 +712,6 @@ function drawStorm(ctx, storm, camera, width, height, time, turnProgress, trail)
   const screen = worldToScreen(visualPosition, camera, width, height);
   const startScreen = worldToScreen(storm.position, camera, width, height);
   const radius = Math.max(8, (Number(storm.radius) || 0) * camera.zoom);
-  const phase = time * 0.0013;
 
   drawStormTrail(ctx, trail, camera, width, height);
 
@@ -648,19 +724,9 @@ function drawStorm(ctx, storm, camera, width, height, time, turnProgress, trail)
   ctx.arc(screen.x, screen.y, radius, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
-
   ctx.setLineDash([]);
-  for (let i = 0; i < 12; i += 1) {
-    const angle = phase + (Math.PI * 2 * i) / 12;
-    const waveRadius = radius * (0.2 + (i % 4) * 0.17);
-    const x = screen.x + Math.cos(angle) * waveRadius;
-    const y = screen.y + Math.sin(angle * 1.4) * waveRadius;
-    ctx.strokeStyle = `rgba(8, 247, 254, ${0.13 + (i % 3) * 0.06})`;
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.arc(x, y, Math.max(6, radius * 0.08), angle, angle + Math.PI * 1.2);
-    ctx.stroke();
-  }
+
+  drawStormVortices(ctx, unitImages?.storm, screen, radius, time, storm.forming);
 
   if (hasNext) {
     const next = worldToScreen(storm.nextPosition, camera, width, height);
@@ -835,7 +901,7 @@ function drawArena(
   }
 
   for (const storm of (arena?.meteoForecasts ?? []).filter((item) => item.kind === 'sandstorm')) {
-    drawStorm(ctx, storm, camera, width, height, time, turnProgress, stormTrails.get(storm.id));
+    drawStorm(ctx, storm, camera, width, height, time, turnProgress, stormTrails.get(storm.id), unitImages);
   }
 
   for (const item of arena?.construction ?? []) {
