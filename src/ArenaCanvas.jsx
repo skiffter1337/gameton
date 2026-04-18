@@ -1,4 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import cockUrl from './assets/cock.png';
+import palmUrl from './assets/palm.png';
+import tigerUrl from './assets/tiger.png';
+import wolfUrl from './assets/wolf.png';
 import {
   clamp,
   coordKey,
@@ -27,6 +31,13 @@ const MAX_BASE_CELLS = 5500;
 const FRAME_MS = 1000 / 24;
 const MAX_DPR = 1.5;
 const LABEL_ZOOM = 9;
+
+const UNIT_IMAGE_URLS = {
+  enemy: cockUrl,
+  beaver: wolfUrl,
+  main: tigerUrl,
+  plant: palmUrl,
+};
 
 function useCanvasSize(ref) {
   const [size, setSize] = useState({ width: 1, height: 1 });
@@ -68,6 +79,30 @@ function makeLookup(items, getPosition = (item) => item.position) {
   }
 
   return map;
+}
+
+function useUnitImages() {
+  const [images, setImages] = useState({});
+
+  useEffect(() => {
+    let mounted = true;
+
+    for (const [key, url] of Object.entries(UNIT_IMAGE_URLS)) {
+      const image = new Image();
+      image.src = url;
+      image.onload = () => {
+        if (mounted) {
+          setImages((current) => ({ ...current, [key]: image }));
+        }
+      };
+    }
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  return images;
 }
 
 function drawText(ctx, text, x, y, size, color = '#FFFFFF', align = 'center') {
@@ -113,6 +148,41 @@ function drawBadge(ctx, text, x, y, color, size = 1) {
   ctx.stroke();
   drawText(ctx, text, x, y + 0.5, clamp(height * 0.52, 9, 13), '#FFFFFF');
   ctx.restore();
+}
+
+function canDrawImage(image) {
+  return image?.complete && image.naturalWidth > 0;
+}
+
+function drawUnitImage(ctx, image, x, y, size, color) {
+  if (!canDrawImage(image)) {
+    return false;
+  }
+
+  const half = size / 2;
+
+  ctx.save();
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 18;
+  ctx.beginPath();
+  ctx.arc(x, y, half * 0.74, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(5, 1, 10, .62)';
+  ctx.fill();
+  ctx.clip();
+  ctx.drawImage(image, x - half, y - half, size, size);
+  ctx.restore();
+
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 10;
+  ctx.beginPath();
+  ctx.arc(x, y, half * 0.74, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+
+  return true;
 }
 
 function drawCaption(ctx, text, x, y, zoom, color) {
@@ -336,7 +406,7 @@ function drawConstruction(ctx, item, camera, width, height, time) {
   ctx.restore();
 }
 
-function drawPlantation(ctx, item, camera, width, height, time, actionRange, selected) {
+function drawPlantation(ctx, item, camera, width, height, time, actionRange, selected, unitImages) {
   const screen = worldToScreen(item.position, camera, width, height);
   const zoom = camera.zoom;
   const radius = clamp(zoom * 0.33, 5, 15);
@@ -389,14 +459,21 @@ function drawPlantation(ctx, item, camera, width, height, time, actionRange, sel
 
   drawProgressRing(ctx, screen.x, screen.y, radius * 1.85, (Number(item.hp) || 0) / 50, color, 2.3);
 
-  drawBadge(
-    ctx,
-    item.isMain ? 'HQ' : 'PL',
-    screen.x,
-    screen.y,
-    color,
-    clamp(zoom * 0.058, 0.9, 1.3),
-  );
+  const imageKey = item.isMain ? 'main' : 'plant';
+  const imageSize = clamp(zoom * 1.35, 24, item.isMain ? 54 : 46);
+  const imageDrawn = drawUnitImage(ctx, unitImages?.[imageKey], screen.x, screen.y, imageSize, color);
+
+  if (!imageDrawn) {
+    drawBadge(
+      ctx,
+      item.isMain ? 'HQ' : 'PL',
+      screen.x,
+      screen.y,
+      color,
+      clamp(zoom * 0.058, 0.9, 1.3),
+    );
+  }
+
   drawCaption(
     ctx,
     item.isMain ? 'Control' : 'Plant',
@@ -407,7 +484,7 @@ function drawPlantation(ctx, item, camera, width, height, time, actionRange, sel
   );
 }
 
-function drawEnemy(ctx, item, camera, width, height, time) {
+function drawEnemy(ctx, item, camera, width, height, time, unitImages) {
   const screen = worldToScreen(item.position, camera, width, height);
   const radius = clamp(camera.zoom * 0.32, 5, 14);
   const pulse = Math.sin(time * 0.005 + item.position[1]) * 0.5 + 0.5;
@@ -426,12 +503,18 @@ function drawEnemy(ctx, item, camera, width, height, time) {
   ctx.lineTo(screen.x - radius * 1.35, screen.y + radius);
   ctx.closePath();
   ctx.fill();
-  drawBadge(ctx, 'EN', screen.x, screen.y, COLORS.enemy, clamp(camera.zoom * 0.058, 0.9, 1.3));
+  const imageSize = clamp(camera.zoom * 1.35, 24, 48);
+  const imageDrawn = drawUnitImage(ctx, unitImages?.enemy, screen.x, screen.y, imageSize, COLORS.enemy);
+
+  if (!imageDrawn) {
+    drawBadge(ctx, 'EN', screen.x, screen.y, COLORS.enemy, clamp(camera.zoom * 0.058, 0.9, 1.3));
+  }
+
   drawCaption(ctx, 'Enemy', screen.x, screen.y + clamp(camera.zoom * 0.95, 16, 28), camera.zoom, COLORS.enemy);
   ctx.restore();
 }
 
-function drawBeaver(ctx, item, camera, width, height, time) {
+function drawBeaver(ctx, item, camera, width, height, time, unitImages) {
   const screen = worldToScreen(item.position, camera, width, height);
   const radius = clamp(camera.zoom * 0.38, 6, 16);
   const wobble = Math.sin(time * 0.006 + item.position[0]) * 2;
@@ -448,7 +531,20 @@ function drawBeaver(ctx, item, camera, width, height, time) {
   ctx.arc(screen.x, screen.y + wobble, radius * 1.25, 0, Math.PI * 2);
   ctx.fill();
   drawProgressRing(ctx, screen.x, screen.y + wobble, radius * 1.85, (Number(item.hp) || 0) / 100, COLORS.beaver, 2.3);
-  drawBadge(ctx, 'BEV', screen.x, screen.y + wobble, COLORS.beaver, clamp(camera.zoom * 0.058, 0.9, 1.3));
+  const imageSize = clamp(camera.zoom * 1.42, 25, 50);
+  const imageDrawn = drawUnitImage(
+    ctx,
+    unitImages?.beaver,
+    screen.x,
+    screen.y + wobble,
+    imageSize,
+    COLORS.beaver,
+  );
+
+  if (!imageDrawn) {
+    drawBadge(ctx, 'BEV', screen.x, screen.y + wobble, COLORS.beaver, clamp(camera.zoom * 0.058, 0.9, 1.3));
+  }
+
   drawCaption(ctx, 'Beaver', screen.x, screen.y + wobble + clamp(camera.zoom * 0.95, 16, 28), camera.zoom, COLORS.beaver);
   ctx.restore();
 }
@@ -643,6 +739,7 @@ function drawArena(
   time,
   turnProgress,
   stormTrails,
+  unitImages,
 ) {
   ctx.clearRect(0, 0, width, height);
 
@@ -723,11 +820,11 @@ function drawArena(
   }
 
   for (const item of arena?.beavers ?? []) {
-    drawBeaver(ctx, item, camera, width, height, time);
+    drawBeaver(ctx, item, camera, width, height, time, unitImages);
   }
 
   for (const item of arena?.enemy ?? []) {
-    drawEnemy(ctx, item, camera, width, height, time);
+    drawEnemy(ctx, item, camera, width, height, time, unitImages);
   }
 
   for (const item of arena?.plantations ?? []) {
@@ -740,6 +837,7 @@ function drawArena(
       time,
       arena?.actionRange,
       sameCoord(selectedCell, item.position),
+      unitImages,
     );
   }
 
@@ -769,6 +867,7 @@ export function ArenaCanvas({
 }) {
   const canvasRef = useRef(null);
   const size = useCanvasSize(canvasRef);
+  const unitImages = useUnitImages();
   const [camera, setCamera] = useState({ x: 0, y: 0, zoom: 18 });
   const cameraRef = useRef(camera);
   const dragRef = useRef(null);
@@ -884,6 +983,7 @@ export function ArenaCanvas({
           time,
           turnProgress,
           stormTrailsRef.current,
+          unitImages,
         );
         lastDraw = time;
       }
@@ -906,7 +1006,7 @@ export function ArenaCanvas({
       cancelled = true;
       cancelAnimationFrame(frame);
     };
-  }, [arena, draftPath, hoverCell, selectedCell, size.height, size.width]);
+  }, [arena, draftPath, hoverCell, selectedCell, size.height, size.width, unitImages]);
 
   const eventPoint = (event) => {
     const rect = canvasRef.current.getBoundingClientRect();
