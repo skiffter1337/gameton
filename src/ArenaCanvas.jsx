@@ -284,11 +284,11 @@ function drawUnitImage(ctx, image, x, y, size, color) {
     return false;
   }
 
-  const frameSize = size * 0.96;
+  const frameSize = size * 0.88;
   const frameHalf = frameSize / 2;
   const frameRadius = clamp(frameSize * 0.14, 4, 7);
   const bounds = getImageContentBounds(image);
-  const maxImageSize = frameSize * 0.84;
+  const maxImageSize = frameSize * 0.82;
   const aspectRatio = bounds.sw / bounds.sh || 1;
   const drawWidth = aspectRatio >= 1 ? maxImageSize : maxImageSize * aspectRatio;
   const drawHeight = aspectRatio >= 1 ? maxImageSize / aspectRatio : maxImageSize;
@@ -484,7 +484,7 @@ function drawMountain(ctx, screen, zoom, unitImages) {
   ctx.closePath();
   ctx.fill();
 
-  const imageSize = clamp(zoom * 1.35, 24, 50);
+  const imageSize = clamp(zoom * 1.02, 18, 40);
   const imageDrawn = drawUnitImage(ctx, unitImages?.mountain, screen.x, screen.y, imageSize, COLORS.mountain);
 
   if (!imageDrawn) {
@@ -546,7 +546,7 @@ function drawConstruction(ctx, item, camera, width, height, time, unitImages) {
   ctx.fillRect(screen.x - size / 2, screen.y + size * 0.62, size, 4);
   ctx.fillStyle = COLORS.construction;
   ctx.fillRect(screen.x - size / 2, screen.y + size * 0.62, size * progress, 4);
-  const imageSize = clamp(zoom * 1.36, 24, 50);
+  const imageSize = clamp(zoom * 1.02, 18, 40);
   const imageDrawn = drawUnitImage(
     ctx,
     unitImages?.construction,
@@ -618,7 +618,7 @@ function drawPlantation(ctx, item, camera, width, height, time, actionRange, sel
   drawProgressRing(ctx, screen.x, screen.y, radius * 1.85, (Number(item.hp) || 0) / 50, color, 2.3);
 
   const imageKey = item.isMain ? 'main' : 'plant';
-  const imageSize = clamp(zoom * 1.35, 24, item.isMain ? 54 : 46);
+  const imageSize = clamp(zoom * 1.02, 18, item.isMain ? 44 : 38);
   const imageDrawn = drawUnitImage(ctx, unitImages?.[imageKey], screen.x, screen.y, imageSize, color);
 
   if (!imageDrawn) {
@@ -661,7 +661,7 @@ function drawEnemy(ctx, item, camera, width, height, time, unitImages) {
   ctx.lineTo(screen.x - radius * 1.35, screen.y + radius);
   ctx.closePath();
   ctx.fill();
-  const imageSize = clamp(camera.zoom * 1.35, 24, 48);
+  const imageSize = clamp(camera.zoom * 1.02, 18, 40);
   const imageDrawn = drawUnitImage(ctx, unitImages?.enemy, screen.x, screen.y, imageSize, COLORS.enemy);
 
   if (!imageDrawn) {
@@ -689,7 +689,7 @@ function drawBeaver(ctx, item, camera, width, height, time, unitImages) {
   ctx.arc(screen.x, screen.y + wobble, radius * 1.25, 0, Math.PI * 2);
   ctx.fill();
   drawProgressRing(ctx, screen.x, screen.y + wobble, radius * 1.85, (Number(item.hp) || 0) / 100, COLORS.beaver, 2.3);
-  const imageSize = clamp(camera.zoom * 1.42, 25, 50);
+  const imageSize = clamp(camera.zoom * 1.08, 18, 42);
   const imageDrawn = drawUnitImage(
     ctx,
     unitImages?.beaver,
