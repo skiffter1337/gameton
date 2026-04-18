@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "source": "/api-test/:path*",
+      "destination": "https://games-test.datsteam.dev/api/:path*"
+    },
+    {
+      "source": "/api-final/:path*",
+      "destination": "https://games.datsteam.dev/api/:path*"
+    }
+  ]
+}
