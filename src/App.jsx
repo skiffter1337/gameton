@@ -68,12 +68,33 @@ function formatTime(date) {
     : '-';
 }
 
-function safePercent(value, max = 50) {
+const MAX_HP_PLANT_ENEMY = 50;
+const MAX_HP_BEAVER = 100;
+const MAX_BUILD_PROGRESS = 50;
+
+function safePercent(value, max = MAX_HP_PLANT_ENEMY) {
   if (!Number.isFinite(value)) {
     return 0;
   }
 
   return Math.max(0, Math.min(100, (value / max) * 100));
+}
+
+function HpMiniBar({ current, max, variant }) {
+  const numeric = Number(current);
+  const safe = Number.isFinite(numeric) ? numeric : 0;
+  const pct = safePercent(safe, max);
+
+  return (
+    <div className={`hp-mini-bar hp-mini-bar--${variant}`}>
+      <div className="hp-mini-bar__track">
+        <div className="hp-mini-bar__fill" style={{ width: `${pct}%` }} />
+      </div>
+      <span className="hp-mini-bar__cap">
+        {Math.round(safe)}/{max}
+      </span>
+    </div>
+  );
 }
 
 function selectCellDetails(arena, position) {
@@ -411,6 +432,7 @@ export default function App() {
                 <div>
                   <strong>{formatCoord(mainPlantation.position)}</strong>
                   <span>{mainPlantation.hp} HP · AR {arena?.actionRange ?? '-'}</span>
+                  <HpMiniBar current={mainPlantation.hp} max={MAX_HP_PLANT_ENEMY} variant="hq" />
                   <span>Immune until turn {mainPlantation.immunityUntilTurn ?? '-'}</span>
                 </div>
               </div>
@@ -638,21 +660,44 @@ function CellInspector({ details }) {
       </div>
 
       {details.own && (
-        <InfoLine
-          label={details.own.isMain ? 'HQ' : 'Plant'}
-          value={`${details.own.hp} HP${details.own.isIsolated ? ' · isolated' : ''}`}
-        />
+        <div className="inspector-hp-block">
+          <InfoLine
+            label={details.own.isMain ? 'HQ (ЦУ)' : 'Plant'}
+            value={`${details.own.hp} HP${details.own.isIsolated ? ' · isolated' : ''}`}
+          />
+          <HpMiniBar
+            current={details.own.hp}
+            max={MAX_HP_PLANT_ENEMY}
+            variant={details.own.isMain ? 'hq' : 'plant'}
+          />
+        </div>
       )}
-      {details.enemy && <InfoLine label="Enemy" value={`${details.enemy.hp} HP`} />}
-      {details.beaver && <InfoLine label="Beavers" value={`${details.beaver.hp} HP`} />}
+      {details.enemy && (
+        <div className="inspector-hp-block">
+          <InfoLine label="Enemy" value={`${details.enemy.hp} HP`} />
+          <HpMiniBar current={details.enemy.hp} max={MAX_HP_PLANT_ENEMY} variant="enemy" />
+        </div>
+      )}
+      {details.beaver && (
+        <div className="inspector-hp-block">
+          <InfoLine label="Beaver" value={`${details.beaver.hp} HP`} />
+          <HpMiniBar current={details.beaver.hp} max={MAX_HP_BEAVER} variant="beaver" />
+        </div>
+      )}
       {details.construction && (
-        <InfoLine label="Build" value={`${details.construction.progress}/50`} />
+        <div className="inspector-hp-block">
+          <InfoLine label="Build" value={`${details.construction.progress}/${MAX_BUILD_PROGRESS}`} />
+          <HpMiniBar current={details.construction.progress} max={MAX_BUILD_PROGRESS} variant="build" />
+        </div>
       )}
       {details.cell && (
-        <InfoLine
-          label="Terraform"
-          value={`${details.cell.terraformationProgress}% · decay ${details.cell.turnsUntilDegradation}`}
-        />
+        <div className="inspector-hp-block">
+          <InfoLine
+            label="Terraform"
+            value={`${details.cell.terraformationProgress}% · decay ${details.cell.turnsUntilDegradation}`}
+          />
+          <HpMiniBar current={details.cell.terraformationProgress} max={100} variant="terraform" />
+        </div>
       )}
       {details.mountain && <InfoLine label="Terrain" value="mountain" />}
       {!details.own &&

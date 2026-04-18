@@ -614,6 +614,83 @@ label {
   text-align: right;
 }
 
+.inspector-hp-block {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.inspector-hp-block:last-child {
+  margin-bottom: 0;
+}
+
+.hp-mini-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 14px;
+}
+
+.hp-mini-bar__track {
+  flex: 1;
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(5, 1, 10, 0.88);
+  border: 1px solid rgba(8, 247, 254, 0.22);
+  overflow: hidden;
+  box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.45);
+}
+
+.hp-mini-bar__fill {
+  height: 100%;
+  min-width: 0;
+  border-radius: 999px;
+  transition: width 0.28s ease;
+}
+
+.hp-mini-bar__cap {
+  flex-shrink: 0;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  min-width: 3.4em;
+  text-align: right;
+}
+
+.hp-mini-bar--hq .hp-mini-bar__fill {
+  background: linear-gradient(90deg, #ffb703, #ff8500);
+  box-shadow: 0 0 12px rgba(255, 183, 3, 0.35);
+}
+
+.hp-mini-bar--plant .hp-mini-bar__fill {
+  background: linear-gradient(90deg, #00f5d4, #08f7fe);
+  box-shadow: 0 0 12px rgba(8, 247, 254, 0.32);
+}
+
+.hp-mini-bar--enemy .hp-mini-bar__fill {
+  background: linear-gradient(90deg, #ff005c, #f72585);
+  box-shadow: 0 0 12px rgba(255, 0, 92, 0.35);
+}
+
+.hp-mini-bar--beaver .hp-mini-bar__fill {
+  background: linear-gradient(90deg, #39ff14, #00f5d4);
+  box-shadow: 0 0 12px rgba(57, 255, 20, 0.28);
+}
+
+.hp-mini-bar--build .hp-mini-bar__fill {
+  background: linear-gradient(90deg, #ff8500, #fb5607);
+  box-shadow: 0 0 12px rgba(255, 133, 0, 0.32);
+}
+
+.hp-mini-bar--terraform .hp-mini-bar__fill {
+  background: linear-gradient(90deg, #00f5d4, #9d4edd);
+  box-shadow: 0 0 12px rgba(0, 245, 212, 0.22);
+}
+
+.main-base .hp-mini-bar {
+  margin-top: 6px;
+}
+
 .planner-tabs {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -798,7 +875,7 @@ label {
 }
 
 .log-list p {
-  color: #FFFFFF;
+  color: #ffffff;
   line-height: 1.35;
 }
 

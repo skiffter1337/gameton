@@ -34,6 +34,9 @@ const MAX_BASE_CELLS = 5500;
 const FRAME_MS = 1000 / 24;
 const MAX_DPR = 1.5;
 const LABEL_ZOOM = 9;
+/** Server uses 50 max for plantations / HQ / enemies; beavers use 100. */
+const MAX_HP_PLANT_ENEMY = 50;
+const MAX_HP_BEAVER = 100;
 
 const UNIT_IMAGE_URLS = {
   construction: buildUrl,
@@ -615,7 +618,7 @@ function drawPlantation(ctx, item, camera, width, height, time, actionRange, sel
   ctx.stroke();
   ctx.restore();
 
-  drawProgressRing(ctx, screen.x, screen.y, radius * 1.85, (Number(item.hp) || 0) / 50, color, 2.3);
+  drawProgressRing(ctx, screen.x, screen.y, radius * 1.85, (Number(item.hp) || 0) / MAX_HP_PLANT_ENEMY, color, 2.3);
 
   const imageKey = item.isMain ? 'main' : 'plant';
   const imageSize = clamp(zoom * 1.02, 18, item.isMain ? 44 : 38);
@@ -632,9 +635,10 @@ function drawPlantation(ctx, item, camera, width, height, time, actionRange, sel
     );
   }
 
+  const hp = Number(item.hp) || 0;
   drawCaption(
     ctx,
-    item.isMain ? 'Control' : 'Plant',
+    item.isMain ? `Control · ${hp}/${MAX_HP_PLANT_ENEMY}` : `Plant · ${hp}/${MAX_HP_PLANT_ENEMY}`,
     screen.x,
     screen.y + clamp(zoom * 0.95, 16, 30),
     zoom,
@@ -661,6 +665,17 @@ function drawEnemy(ctx, item, camera, width, height, time, unitImages) {
   ctx.lineTo(screen.x - radius * 1.35, screen.y + radius);
   ctx.closePath();
   ctx.fill();
+
+  drawProgressRing(
+    ctx,
+    screen.x,
+    screen.y,
+    radius * 1.85,
+    (Number(item.hp) || 0) / MAX_HP_PLANT_ENEMY,
+    COLORS.enemy,
+    2.3,
+  );
+
   const imageSize = clamp(camera.zoom * 1.02, 18, 40);
   const imageDrawn = drawUnitImage(ctx, unitImages?.enemy, screen.x, screen.y, imageSize, COLORS.enemy);
 
@@ -668,7 +683,15 @@ function drawEnemy(ctx, item, camera, width, height, time, unitImages) {
     drawBadge(ctx, 'EN', screen.x, screen.y, COLORS.enemy, clamp(camera.zoom * 0.058, 0.9, 1.3));
   }
 
-  drawCaption(ctx, 'Enemy', screen.x, screen.y + clamp(camera.zoom * 0.95, 16, 28), camera.zoom, COLORS.enemy);
+  const enemyHp = Number(item.hp) || 0;
+  drawCaption(
+    ctx,
+    `Enemy · ${enemyHp}/${MAX_HP_PLANT_ENEMY}`,
+    screen.x,
+    screen.y + clamp(camera.zoom * 0.95, 16, 28),
+    camera.zoom,
+    COLORS.enemy,
+  );
   ctx.restore();
 }
 
@@ -688,7 +711,15 @@ function drawBeaver(ctx, item, camera, width, height, time, unitImages) {
   ctx.beginPath();
   ctx.arc(screen.x, screen.y + wobble, radius * 1.25, 0, Math.PI * 2);
   ctx.fill();
-  drawProgressRing(ctx, screen.x, screen.y + wobble, radius * 1.85, (Number(item.hp) || 0) / 100, COLORS.beaver, 2.3);
+  drawProgressRing(
+    ctx,
+    screen.x,
+    screen.y + wobble,
+    radius * 1.85,
+    (Number(item.hp) || 0) / MAX_HP_BEAVER,
+    COLORS.beaver,
+    2.3,
+  );
   const imageSize = clamp(camera.zoom * 1.08, 18, 42);
   const imageDrawn = drawUnitImage(
     ctx,
@@ -703,7 +734,15 @@ function drawBeaver(ctx, item, camera, width, height, time, unitImages) {
     drawBadge(ctx, 'BEV', screen.x, screen.y + wobble, COLORS.beaver, clamp(camera.zoom * 0.058, 0.9, 1.3));
   }
 
-  drawCaption(ctx, 'Beaver', screen.x, screen.y + wobble + clamp(camera.zoom * 0.95, 16, 28), camera.zoom, COLORS.beaver);
+  const beaverHp = Number(item.hp) || 0;
+  drawCaption(
+    ctx,
+    `Beaver · ${beaverHp}/${MAX_HP_BEAVER}`,
+    screen.x,
+    screen.y + wobble + clamp(camera.zoom * 0.95, 16, 28),
+    camera.zoom,
+    COLORS.beaver,
+  );
   ctx.restore();
 }
 
