@@ -158,22 +158,30 @@ function canDrawImage(image) {
   return image?.complete && image.naturalWidth > 0;
 }
 
-function drawUnitImage(ctx, image, x, y, size, color) {
+function drawUnitImage(ctx, image, x, y, size, color, options = {}) {
   if (!canDrawImage(image)) {
     return false;
   }
 
+  const { clip = true, frameScale = 0.74, imageScale = 1 } = options;
   const half = size / 2;
+  const frameRadius = half * frameScale;
+  const maxImageSize = size * imageScale;
+  const aspectRatio = image.naturalWidth / image.naturalHeight || 1;
+  const drawWidth = aspectRatio >= 1 ? maxImageSize : maxImageSize * aspectRatio;
+  const drawHeight = aspectRatio >= 1 ? maxImageSize / aspectRatio : maxImageSize;
 
   ctx.save();
   ctx.shadowColor = color;
   ctx.shadowBlur = 18;
   ctx.beginPath();
-  ctx.arc(x, y, half * 0.74, 0, Math.PI * 2);
+  ctx.arc(x, y, frameRadius, 0, Math.PI * 2);
   ctx.fillStyle = 'rgba(5, 1, 10, .62)';
   ctx.fill();
-  ctx.clip();
-  ctx.drawImage(image, x - half, y - half, size, size);
+  if (clip) {
+    ctx.clip();
+  }
+  ctx.drawImage(image, x - drawWidth / 2, y - drawHeight / 2, drawWidth, drawHeight);
   ctx.restore();
 
   ctx.save();
@@ -182,7 +190,7 @@ function drawUnitImage(ctx, image, x, y, size, color) {
   ctx.shadowColor = color;
   ctx.shadowBlur = 10;
   ctx.beginPath();
-  ctx.arc(x, y, half * 0.74, 0, Math.PI * 2);
+  ctx.arc(x, y, frameRadius, 0, Math.PI * 2);
   ctx.stroke();
   ctx.restore();
 
@@ -484,7 +492,11 @@ function drawPlantation(ctx, item, camera, width, height, time, actionRange, sel
 
   const imageKey = item.isMain ? 'main' : 'plant';
   const imageSize = clamp(zoom * 1.35, 24, item.isMain ? 54 : 46);
-  const imageDrawn = drawUnitImage(ctx, unitImages?.[imageKey], screen.x, screen.y, imageSize, color);
+  const imageDrawn = drawUnitImage(ctx, unitImages?.[imageKey], screen.x, screen.y, imageSize, color, {
+    clip: !item.isMain,
+    frameScale: item.isMain ? 0.82 : 0.74,
+    imageScale: item.isMain ? 1.08 : 1,
+  });
 
   if (!imageDrawn) {
     drawBadge(
