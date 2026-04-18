@@ -318,7 +318,7 @@ label span,
 
 .control-band {
   display: grid;
-  grid-template-columns: minmax(240px, 1fr) minmax(118px, 140px) repeat(4, auto);
+  grid-template-columns: minmax(240px, 1fr) minmax(118px, 140px) repeat(5, auto);
   gap: 12px;
   align-items: end;
   margin-top: 12px;

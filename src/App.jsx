@@ -7,6 +7,7 @@ const DEFAULT_REFRESH_SECONDS = 1;
 const MIN_REFRESH_SECONDS = 0.5;
 const MAX_REFRESH_SECONDS = 60;
 const BACKEND_LABEL = '111.88.249.234:9292';
+const MUSIC_URL = '/audio/miami.mp3';
 
 const UPGRADE_LABELS = {
   repair_power: 'Repair + build',
@@ -52,6 +53,10 @@ function readRefreshSeconds() {
 
 function refreshMs(seconds) {
   return Math.round(normalizeRefreshSeconds(seconds) * 1000);
+}
+
+function readMusicEnabled() {
+  return readStorage('datsol.musicEnabled', 'true') !== 'false';
 }
 
 function formatCoord(position) {
@@ -154,6 +159,8 @@ function buildStats(arena, logs) {
 
 export default function App() {
   const [refreshSeconds, setRefreshSeconds] = useState(readRefreshSeconds);
+  const [musicEnabled, setMusicEnabled] = useState(readMusicEnabled);
+  const [musicState, setMusicState] = useState('idle');
   const [arena, setArena] = useState(null);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -167,6 +174,7 @@ export default function App() {
   const [draftPath, setDraftPath] = useState([]);
   const [cameraSignal, setCameraSignal] = useState(0);
   const [baseFocusSignal, setBaseFocusSignal] = useState(0);
+  const musicRef = useRef(null);
   const requestCounter = useRef(0);
   const lastMainPositionKeyRef = useRef('');
 
@@ -223,6 +231,49 @@ export default function App() {
   useEffect(() => {
     writeStorage('datsol.refreshSeconds', String(refreshSeconds));
   }, [refreshSeconds]);
+
+  useEffect(() => {
+    writeStorage('datsol.musicEnabled', String(musicEnabled));
+  }, [musicEnabled]);
+
+  useEffect(() => {
+    const audio = musicRef.current;
+
+    if (!audio) {
+      return undefined;
+    }
+
+    audio.volume = 0.34;
+    audio.loop = true;
+
+    const markMissing = () => setMusicState('error');
+    const play = () => {
+      if (!musicEnabled) {
+        audio.pause();
+        setMusicState('muted');
+        return;
+      }
+
+      audio
+        .play()
+        .then(() => setMusicState('playing'))
+        .catch(() => setMusicState('blocked'));
+    };
+
+    audio.addEventListener('error', markMissing);
+    play();
+
+    if (musicEnabled) {
+      window.addEventListener('pointerdown', play, { once: true });
+      window.addEventListener('keydown', play, { once: true });
+    }
+
+    return () => {
+      audio.removeEventListener('error', markMissing);
+      window.removeEventListener('pointerdown', play);
+      window.removeEventListener('keydown', play);
+    };
+  }, [musicEnabled]);
 
   useEffect(() => {
     if (paused) {
@@ -289,6 +340,18 @@ export default function App() {
     setBaseFocusSignal((value) => value + 1);
   };
 
+  const toggleMusic = () => {
+    const audio = musicRef.current;
+    const next = !musicEnabled;
+
+    setMusicEnabled(next);
+
+    if (!next && audio) {
+      audio.pause();
+      setMusicState('muted');
+    }
+  };
+
   const submitDraft = async () => {
     const expected = plannerMode === 'relocate' ? 2 : 3;
 
@@ -343,6 +406,8 @@ export default function App() {
 
   return (
     <main className="app-shell">
+      <audio ref={musicRef} src={MUSIC_URL} preload="auto" />
+
       <header className="topbar">
         <div className="brand-block">
           <div className="brand-mark">DS</div>
@@ -410,6 +475,15 @@ export default function App() {
           onClick={focusMainBase}
         >
           Base
+        </button>
+        <button type="button" className="secondary music-button" onClick={toggleMusic}>
+          {musicState === 'error'
+            ? 'Missing'
+            : musicEnabled
+              ? musicState === 'blocked'
+                ? 'Start music'
+                : 'Mute'
+              : 'Music'}
         </button>
       </section>
 
