@@ -156,6 +156,7 @@ function buildStats(arena, logs) {
 export default function App() {
   const [refreshSeconds, setRefreshSeconds] = useState(readRefreshSeconds);
   const [musicEnabled, setMusicEnabled] = useState(true);
+  const [musicPlaying, setMusicPlaying] = useState(false);
   const [arena, setArena] = useState(null);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -238,7 +239,13 @@ export default function App() {
     audio.loop = true;
     audio.autoplay = true;
 
-    const play = () => {
+    const markPlaying = () => setMusicPlaying(true);
+    const markStopped = () => setMusicPlaying(false);
+    const play = (event) => {
+      if (event?.target instanceof Element && event.target.closest('[data-music-toggle]')) {
+        return;
+      }
+
       if (!musicEnabled) {
         audio.pause();
         return;
@@ -247,17 +254,25 @@ export default function App() {
       audio.play().catch(() => {});
     };
 
+    audio.addEventListener('playing', markPlaying);
+    audio.addEventListener('pause', markStopped);
+    audio.addEventListener('ended', markStopped);
+    audio.addEventListener('error', markStopped);
     audio.addEventListener('canplay', play);
     play();
 
     if (musicEnabled) {
-      window.addEventListener('pointerdown', play, { once: true });
+      window.addEventListener('pointerdown', play, { once: true, capture: true });
       window.addEventListener('keydown', play, { once: true });
     }
 
     return () => {
+      audio.removeEventListener('playing', markPlaying);
+      audio.removeEventListener('pause', markStopped);
+      audio.removeEventListener('ended', markStopped);
+      audio.removeEventListener('error', markStopped);
       audio.removeEventListener('canplay', play);
-      window.removeEventListener('pointerdown', play);
+      window.removeEventListener('pointerdown', play, true);
       window.removeEventListener('keydown', play);
     };
   }, [musicEnabled]);
@@ -330,19 +345,14 @@ export default function App() {
   const toggleMusic = () => {
     const audio = musicRef.current;
 
-    setMusicEnabled((current) => {
-      const next = !current;
+    if (!musicEnabled || !musicPlaying) {
+      setMusicEnabled(true);
+      audio?.play().catch(() => {});
+      return;
+    }
 
-      if (audio) {
-        if (next) {
-          audio.play().catch(() => {});
-        } else {
-          audio.pause();
-        }
-      }
-
-      return next;
-    });
+    audio?.pause();
+    setMusicEnabled(false);
   };
 
   const submitDraft = async () => {
@@ -472,6 +482,7 @@ export default function App() {
         <button
           type="button"
           className="secondary music-button"
+          data-music-toggle
           aria-pressed={musicEnabled}
           onClick={toggleMusic}
         >
