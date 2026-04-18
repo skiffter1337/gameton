@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import cockUrl from './assets/cock.png';
+import mountainUrl from './assets/mountain.png';
 import palmUrl from './assets/palm.png';
 import tigerUrl from './assets/tiger.png';
 import wolfUrl from './assets/wolf.png';
@@ -36,6 +37,7 @@ const UNIT_IMAGE_URLS = {
   enemy: cockUrl,
   beaver: wolfUrl,
   main: tigerUrl,
+  mountain: mountainUrl,
   plant: palmUrl,
 };
 
@@ -322,7 +324,7 @@ function drawSparseGrid(ctx, minX, maxX, minY, maxY, camera, width, height, aren
   ctx.restore();
 }
 
-function drawMountain(ctx, screen, zoom) {
+function drawMountain(ctx, screen, zoom, unitImages) {
   const size = clamp(zoom * 0.98, 8, 40);
   const half = size / 2;
 
@@ -345,7 +347,13 @@ function drawMountain(ctx, screen, zoom) {
   ctx.closePath();
   ctx.fill();
 
-  drawBadge(ctx, 'MT', screen.x, screen.y, COLORS.mountain, clamp(zoom * 0.055, 0.9, 1.25));
+  const imageSize = clamp(zoom * 1.35, 24, 50);
+  const imageDrawn = drawUnitImage(ctx, unitImages?.mountain, screen.x, screen.y, imageSize, COLORS.mountain);
+
+  if (!imageDrawn) {
+    drawBadge(ctx, 'MT', screen.x, screen.y, COLORS.mountain, clamp(zoom * 0.055, 0.9, 1.25));
+  }
+
   drawCaption(ctx, 'Mountain', screen.x, screen.y + clamp(zoom * 0.95, 16, 28), zoom, COLORS.mountain);
   ctx.restore();
 }
@@ -808,7 +816,7 @@ function drawArena(
 
   for (const position of arena?.mountains ?? []) {
     const screen = worldToScreen(position, camera, width, height);
-    drawMountain(ctx, screen, zoom);
+    drawMountain(ctx, screen, zoom, unitImages);
   }
 
   for (const storm of (arena?.meteoForecasts ?? []).filter((item) => item.kind === 'sandstorm')) {
