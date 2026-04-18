@@ -168,6 +168,7 @@ export default function App() {
   const [cameraSignal, setCameraSignal] = useState(0);
   const [baseFocusSignal, setBaseFocusSignal] = useState(0);
   const requestCounter = useRef(0);
+  const lastMainPositionKeyRef = useRef('');
 
   const stats = useMemo(() => buildStats(arena, logs), [arena, logs]);
   const selectedDetails = useMemo(
@@ -175,6 +176,7 @@ export default function App() {
     [arena, selectedCell],
   );
   const mainPlantation = arena?.plantations?.find((item) => item.isMain);
+  const mainPositionKey = Array.isArray(mainPlantation?.position) ? coordKey(mainPlantation.position) : '';
   const deathLogs = useMemo(() => logs.filter(isDeathLog), [logs]);
   const pollMs = useMemo(() => refreshMs(refreshSeconds), [refreshSeconds]);
 
@@ -236,6 +238,18 @@ export default function App() {
       window.clearInterval(timer);
     };
   }, [loadArena, paused, pollMs]);
+
+  useEffect(() => {
+    const previousKey = lastMainPositionKeyRef.current;
+    lastMainPositionKeyRef.current = mainPositionKey;
+
+    if (!previousKey || !mainPositionKey || previousKey === mainPositionKey || !mainPlantation) {
+      return;
+    }
+
+    setSelectedCell(mainPlantation.position);
+    setBaseFocusSignal((value) => value + 1);
+  }, [mainPlantation, mainPositionKey]);
 
   const onCanvasCellClick = useCallback(
     (position) => {
