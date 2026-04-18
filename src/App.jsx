@@ -4,7 +4,9 @@ import { ArenaCanvas } from './ArenaCanvas.jsx';
 import { coordKey, isBoostCell } from './arenaMath.js';
 
 const DEFAULT_TOKEN = import.meta.env.VITE_DEFAULT_TOKEN ?? '';
-const POLL_MS = 1050;
+const DEFAULT_REFRESH_SECONDS = 1;
+const MIN_REFRESH_SECONDS = 0.5;
+const MAX_REFRESH_SECONDS = 60;
 
 const UPGRADE_LABELS = {
   repair_power: 'Repair + build',
@@ -31,6 +33,25 @@ function writeStorage(key, value) {
   } catch {
     // Private windows can block localStorage. The app still works for the session.
   }
+}
+
+function normalizeRefreshSeconds(value) {
+  const numeric = Number(value);
+
+  if (!Number.isFinite(numeric)) {
+    return DEFAULT_REFRESH_SECONDS;
+  }
+
+  const clamped = Math.min(MAX_REFRESH_SECONDS, Math.max(MIN_REFRESH_SECONDS, numeric));
+  return Math.round(clamped * 10) / 10;
+}
+
+function readRefreshSeconds() {
+  return normalizeRefreshSeconds(readStorage('datsol.refreshSeconds', String(DEFAULT_REFRESH_SECONDS)));
+}
+
+function refreshMs(seconds) {
+  return Math.round(normalizeRefreshSeconds(seconds) * 1000);
 }
 
 function formatCoord(position) {
@@ -107,6 +128,7 @@ function buildStats(arena, logs) {
 export default function App() {
   const [serverKey, setServerKey] = useState(() => readStorage('datsol.server', 'test'));
   const [token, setToken] = useState(() => readStorage('datsol.token', DEFAULT_TOKEN));
+  const [refreshSeconds, setRefreshSeconds] = useState(readRefreshSeconds);
   const [arena, setArena] = useState(null);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -128,6 +150,7 @@ export default function App() {
   );
   const mainPlantation = arena?.plantations?.find((item) => item.isMain);
   const tokenReady = token.trim().length > 0;
+  const pollMs = useMemo(() => refreshMs(refreshSeconds), [refreshSeconds]);
 
   const loadArena = useCallback(
     async (signal) => {
@@ -183,19 +206,23 @@ export default function App() {
   }, [token]);
 
   useEffect(() => {
+    writeStorage('datsol.refreshSeconds', String(refreshSeconds));
+  }, [refreshSeconds]);
+
+  useEffect(() => {
     if (paused) {
       return undefined;
     }
 
     const controller = new AbortController();
     loadArena(controller.signal);
-    const timer = window.setInterval(() => loadArena(controller.signal), POLL_MS);
+    const timer = window.setInterval(() => loadArena(controller.signal), pollMs);
 
     return () => {
       controller.abort();
       window.clearInterval(timer);
     };
-  }, [loadArena, paused]);
+  }, [loadArena, paused, pollMs]);
 
   const onCanvasCellClick = useCallback(
     (position) => {
@@ -327,6 +354,19 @@ export default function App() {
             onChange={(event) => setToken(event.target.value)}
             placeholder="X-Auth-Token"
             spellCheck="false"
+          />
+        </label>
+
+        <label className="refresh-field">
+          <span>Sync, sec</span>
+          <input
+            type="number"
+            min={MIN_REFRESH_SECONDS}
+            max={MAX_REFRESH_SECONDS}
+            step="0.5"
+            value={refreshSeconds}
+            onChange={(event) => setRefreshSeconds(normalizeRefreshSeconds(event.target.value))}
+            aria-label="Arena and logs refresh interval in seconds"
           />
         </label>
 

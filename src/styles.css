@@ -317,7 +317,7 @@ label span,
 
 .control-band {
   display: grid;
-  grid-template-columns: 210px minmax(260px, 1fr) repeat(3, auto);
+  grid-template-columns: 190px minmax(260px, 1fr) minmax(118px, 140px) repeat(3, auto);
   gap: 12px;
   align-items: end;
   margin-top: 12px;
@@ -332,6 +332,10 @@ label {
 
 .token-field input {
   font-family: var(--display-font);
+}
+
+.refresh-field input {
+  text-align: center;
 }
 
 .dashboard {
