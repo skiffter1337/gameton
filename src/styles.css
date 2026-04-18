@@ -278,6 +278,7 @@ h2 {
 
 .status-strip span,
 label span,
+.backend-chip span,
 .map-overlay span,
 .metric span,
 .main-base span,
@@ -317,7 +318,7 @@ label span,
 
 .control-band {
   display: grid;
-  grid-template-columns: 190px minmax(260px, 1fr) minmax(118px, 140px) repeat(3, auto);
+  grid-template-columns: minmax(240px, 1fr) minmax(118px, 140px) repeat(4, auto);
   gap: 12px;
   align-items: end;
   margin-top: 12px;
@@ -330,8 +331,22 @@ label {
   gap: 6px;
 }
 
-.token-field input {
-  font-family: var(--display-font);
+.backend-chip {
+  display: grid;
+  gap: 6px;
+  min-height: 42px;
+}
+
+.backend-chip strong {
+  display: flex;
+  align-items: center;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 12px;
+  color: #FFFFFF;
+  background: rgba(5, 1, 10, 0.72);
+  box-shadow: inset 0 0 16px rgba(8, 247, 254, 0.06);
 }
 
 .refresh-field input {
@@ -842,7 +857,7 @@ label {
 
 .lower-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 420px);
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 360px) minmax(280px, 420px);
   gap: 12px;
   margin-top: 12px;
 }
@@ -877,6 +892,17 @@ label {
 .log-list p {
   color: #ffffff;
   line-height: 1.35;
+}
+
+.death-log-list article {
+  border-color: rgba(255, 0, 92, 0.38);
+  background:
+    linear-gradient(135deg, rgba(255, 0, 92, 0.18), rgba(255, 60, 56, 0.08)),
+    rgba(5, 1, 10, 0.62);
+}
+
+.death-log-list time {
+  color: var(--soft-pink);
 }
 
 .legend-grid {

@@ -1,21 +1,7 @@
-export const SERVERS = {
-  test: {
-    key: 'test',
-    label: 'Test',
-    origin: 'https://games-test.datsteam.dev',
-    prefix: '/api-test',
-  },
-  final: {
-    key: 'final',
-    label: 'Final',
-    origin: 'https://games.datsteam.dev',
-    prefix: '/api-final',
-  },
-};
+const API_PREFIX = '/api';
 
-function endpoint(serverKey, path) {
-  const server = SERVERS[serverKey] ?? SERVERS.test;
-  return `${server.prefix}${path}`;
+function endpoint(path) {
+  return `${API_PREFIX}${path}`;
 }
 
 async function parseResponse(response) {
@@ -43,34 +29,23 @@ async function parseResponse(response) {
   return payload;
 }
 
-export async function getArena(serverKey, token, signal) {
-  const response = await fetch(endpoint(serverKey, '/arena'), {
-    signal,
-    headers: {
-      'X-Auth-Token': token,
-    },
-  });
+export async function getArena(signal) {
+  const response = await fetch(endpoint('/arena'), { signal });
 
   return parseResponse(response);
 }
 
-export async function getLogs(serverKey, token, signal) {
-  const response = await fetch(endpoint(serverKey, '/logs'), {
-    signal,
-    headers: {
-      'X-Auth-Token': token,
-    },
-  });
+export async function getLogs(signal) {
+  const response = await fetch(endpoint('/logs'), { signal });
 
   return parseResponse(response);
 }
 
-export async function sendCommand(serverKey, token, body) {
-  const response = await fetch(endpoint(serverKey, '/command'), {
+export async function sendCommand(body) {
+  const response = await fetch(endpoint('/command'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'X-Auth-Token': token,
     },
     body: JSON.stringify(body),
   });

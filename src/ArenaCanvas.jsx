@@ -1123,6 +1123,8 @@ export function ArenaCanvas({
   hoverCell,
   draftPath,
   cameraSignal,
+  focusSignal,
+  focusPosition,
   onCellClick,
   onHoverCell,
 }) {
@@ -1134,6 +1136,7 @@ export function ArenaCanvas({
   const dragRef = useRef(null);
   const fittedRef = useRef(false);
   const lastCameraSignalRef = useRef(cameraSignal);
+  const lastFocusSignalRef = useRef(focusSignal);
   const lastFitSizeRef = useRef('');
   const lastMapSizeRef = useRef('');
   const hoverKeyRef = useRef('');
@@ -1208,6 +1211,22 @@ export function ArenaCanvas({
       lastMapSizeRef.current = mapSize;
     }
   }, [arena, cameraSignal, size.width, size.height]);
+
+  useEffect(() => {
+    const focusChanged = lastFocusSignalRef.current !== focusSignal;
+    lastFocusSignalRef.current = focusSignal;
+
+    if (!focusChanged || !Array.isArray(focusPosition) || size.width <= 10 || size.height <= 10) {
+      return;
+    }
+
+    const zoom = clamp(Math.min(size.width, size.height) / 14, 22, 42);
+    setCamera({
+      x: focusPosition[0],
+      y: focusPosition[1],
+      zoom,
+    });
+  }, [focusPosition, focusSignal, size.width, size.height]);
 
   useEffect(() => {
     const canvas = canvasRef.current;

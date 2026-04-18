@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getArena, getLogs, sendCommand, SERVERS } from './api.js';
+import { getArena, getLogs, sendCommand } from './api.js';
 import { ArenaCanvas } from './ArenaCanvas.jsx';
 import { coordKey, isBoostCell } from './arenaMath.js';
 
-const DEFAULT_TOKEN = import.meta.env.VITE_DEFAULT_TOKEN ?? '';
 const DEFAULT_REFRESH_SECONDS = 1;
 const MIN_REFRESH_SECONDS = 0.5;
 const MAX_REFRESH_SECONDS = 60;
+const BACKEND_LABEL = '111.88.249.234:9292';
 
 const UPGRADE_LABELS = {
   repair_power: 'Repair + build',
@@ -80,6 +80,12 @@ function safePercent(value, max = MAX_HP_PLANT_ENEMY) {
   return Math.max(0, Math.min(100, (value / max) * 100));
 }
 
+function isDeathLog(log) {
+  const message = log?.message ?? '';
+
+  return /death|dead|died|kill|loss|destroyed|hq loss|death penalty/i.test(message);
+}
+
 function HpMiniBar({ current, max, variant }) {
   const numeric = Number(current);
   const safe = Number.isFinite(numeric) ? numeric : 0;
@@ -128,7 +134,7 @@ function buildStats(arena, logs) {
     0,
   );
   const hp = arena?.plantations?.reduce((sum, item) => sum + (Number(item.hp) || 0), 0);
-  const deathCount = logs?.filter((log) => /Death penalty applied/i.test(log.message)).length ?? 0;
+  const deathCount = logs?.filter(isDeathLog).length ?? 0;
   const earthquakeForecast = arena?.meteoForecasts?.find((item) => item.kind === 'earthquake');
   const storm = arena?.meteoForecasts?.find((item) => item.kind === 'sandstorm');
 
@@ -147,8 +153,6 @@ function buildStats(arena, logs) {
 }
 
 export default function App() {
-  const [serverKey, setServerKey] = useState(() => readStorage('datsol.server', 'test'));
-  const [token, setToken] = useState(() => readStorage('datsol.token', DEFAULT_TOKEN));
   const [refreshSeconds, setRefreshSeconds] = useState(readRefreshSeconds);
   const [arena, setArena] = useState(null);
   const [logs, setLogs] = useState([]);
@@ -162,6 +166,7 @@ export default function App() {
   const [plannerMode, setPlannerMode] = useState('inspect');
   const [draftPath, setDraftPath] = useState([]);
   const [cameraSignal, setCameraSignal] = useState(0);
+  const [baseFocusSignal, setBaseFocusSignal] = useState(0);
   const requestCounter = useRef(0);
 
   const stats = useMemo(() => buildStats(arena, logs), [arena, logs]);
@@ -170,24 +175,19 @@ export default function App() {
     [arena, selectedCell],
   );
   const mainPlantation = arena?.plantations?.find((item) => item.isMain);
-  const tokenReady = token.trim().length > 0;
+  const deathLogs = useMemo(() => logs.filter(isDeathLog), [logs]);
   const pollMs = useMemo(() => refreshMs(refreshSeconds), [refreshSeconds]);
 
   const loadArena = useCallback(
     async (signal) => {
-      if (!tokenReady) {
-        setError('Enter a token to sync the arena.');
-        return;
-      }
-
       const id = requestCounter.current + 1;
       requestCounter.current = id;
       setLoading(true);
 
       try {
         const [arenaPayload, logsPayload] = await Promise.allSettled([
-          getArena(serverKey, token.trim(), signal),
-          getLogs(serverKey, token.trim(), signal),
+          getArena(signal),
+          getLogs(signal),
         ]);
 
         if (requestCounter.current !== id) {
@@ -215,16 +215,8 @@ export default function App() {
         }
       }
     },
-    [serverKey, token, tokenReady],
+    [],
   );
-
-  useEffect(() => {
-    writeStorage('datsol.server', serverKey);
-  }, [serverKey]);
-
-  useEffect(() => {
-    writeStorage('datsol.token', token);
-  }, [token]);
 
   useEffect(() => {
     writeStorage('datsol.refreshSeconds', String(refreshSeconds));
@@ -274,6 +266,15 @@ export default function App() {
     setDraftPath([mainPlantation.position, mainPlantation.position]);
   };
 
+  const focusMainBase = () => {
+    if (!mainPlantation) {
+      return;
+    }
+
+    setSelectedCell(mainPlantation.position);
+    setBaseFocusSignal((value) => value + 1);
+  };
+
   const submitDraft = async () => {
     const expected = plannerMode === 'relocate' ? 2 : 3;
 
@@ -291,7 +292,7 @@ export default function App() {
         : { command: [{ path: draftPath }] };
 
     try {
-      const result = await sendCommand(serverKey, token.trim(), body);
+      const result = await sendCommand(body);
       const errors = result?.errors ?? [];
       setCommandResult({
         type: errors.length ? 'warn' : 'ok',
@@ -309,7 +310,7 @@ export default function App() {
 
   const submitUpgrade = async (name) => {
     try {
-      const result = await sendCommand(serverKey, token.trim(), { plantationUpgrade: name });
+      const result = await sendCommand({ plantationUpgrade: name });
       const errors = result?.errors ?? [];
       setCommandResult({
         type: errors.length ? 'warn' : 'ok',
@@ -357,26 +358,10 @@ export default function App() {
       </header>
 
       <section className="control-band">
-        <label>
-          <span>Server</span>
-          <select value={serverKey} onChange={(event) => setServerKey(event.target.value)}>
-            {Object.values(SERVERS).map((server) => (
-              <option key={server.key} value={server.key}>
-                {server.label} · {server.origin.replace('https://', '')}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="token-field">
-          <span>Token</span>
-          <input
-            value={token}
-            onChange={(event) => setToken(event.target.value)}
-            placeholder="X-Auth-Token"
-            spellCheck="false"
-          />
-        </label>
+        <div className="backend-chip">
+          <span>Backend</span>
+          <strong>{BACKEND_LABEL}</strong>
+        </div>
 
         <label className="refresh-field">
           <span>Sync, sec</span>
@@ -403,6 +388,14 @@ export default function App() {
           onClick={() => setCameraSignal((value) => value + 1)}
         >
           Center
+        </button>
+        <button
+          type="button"
+          className="secondary"
+          disabled={!mainPlantation}
+          onClick={focusMainBase}
+        >
+          Base
         </button>
       </section>
 
@@ -454,6 +447,8 @@ export default function App() {
             hoverCell={hoverCell}
             draftPath={draftPath}
             cameraSignal={cameraSignal}
+            focusSignal={baseFocusSignal}
+            focusPosition={mainPlantation?.position}
             onCellClick={onCanvasCellClick}
             onHoverCell={setHoverCell}
           />
@@ -590,6 +585,22 @@ export default function App() {
               ))
             ) : (
               <p className="muted">Logs are empty.</p>
+            )}
+          </div>
+        </div>
+
+        <div className="panel-block death-panel">
+          <h2>Deaths</h2>
+          <div className="log-list death-log-list">
+            {deathLogs.length ? (
+              deathLogs.map((log, index) => (
+                <article key={`death-${log.time}-${index}`}>
+                  <time>{formatTime(new Date(log.time))}</time>
+                  <p>{log.message}</p>
+                </article>
+              ))
+            ) : (
+              <p className="muted">No death events.</p>
             )}
           </div>
         </div>
