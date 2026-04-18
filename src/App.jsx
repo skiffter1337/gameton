@@ -160,7 +160,6 @@ function buildStats(arena, logs) {
 export default function App() {
   const [refreshSeconds, setRefreshSeconds] = useState(readRefreshSeconds);
   const [musicEnabled, setMusicEnabled] = useState(readMusicEnabled);
-  const [musicState, setMusicState] = useState('idle');
   const [arena, setArena] = useState(null);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -246,21 +245,15 @@ export default function App() {
     audio.volume = 0.34;
     audio.loop = true;
 
-    const markMissing = () => setMusicState('error');
     const play = () => {
       if (!musicEnabled) {
         audio.pause();
-        setMusicState('muted');
         return;
       }
 
-      audio
-        .play()
-        .then(() => setMusicState('playing'))
-        .catch(() => setMusicState('blocked'));
+      audio.play().catch(() => {});
     };
 
-    audio.addEventListener('error', markMissing);
     play();
 
     if (musicEnabled) {
@@ -269,7 +262,6 @@ export default function App() {
     }
 
     return () => {
-      audio.removeEventListener('error', markMissing);
       window.removeEventListener('pointerdown', play);
       window.removeEventListener('keydown', play);
     };
@@ -342,14 +334,20 @@ export default function App() {
 
   const toggleMusic = () => {
     const audio = musicRef.current;
-    const next = !musicEnabled;
 
-    setMusicEnabled(next);
+    setMusicEnabled((current) => {
+      const next = !current;
 
-    if (!next && audio) {
-      audio.pause();
-      setMusicState('muted');
-    }
+      if (audio) {
+        if (next) {
+          audio.play().catch(() => {});
+        } else {
+          audio.pause();
+        }
+      }
+
+      return next;
+    });
   };
 
   const submitDraft = async () => {
@@ -476,14 +474,13 @@ export default function App() {
         >
           Base
         </button>
-        <button type="button" className="secondary music-button" onClick={toggleMusic}>
-          {musicState === 'error'
-            ? 'Missing'
-            : musicEnabled
-              ? musicState === 'blocked'
-                ? 'Start music'
-                : 'Mute'
-              : 'Music'}
+        <button
+          type="button"
+          className="secondary music-button"
+          aria-pressed={musicEnabled}
+          onClick={toggleMusic}
+        >
+          {musicEnabled ? 'Music on' : 'Music off'}
         </button>
       </section>
 
