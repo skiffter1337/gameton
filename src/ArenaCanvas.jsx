@@ -45,6 +45,8 @@ const UNIT_IMAGE_URLS = {
   storm: bloodUrl,
 };
 
+const IMAGE_CONTENT_BOUNDS = new WeakMap();
+
 function useCanvasSize(ref) {
   const [size, setSize] = useState({ width: 1, height: 1 });
 
@@ -160,22 +162,154 @@ function canDrawImage(image) {
   return image?.complete && image.naturalWidth > 0;
 }
 
+function colorDistance(a, b) {
+  const dr = a.r - b.r;
+  const dg = a.g - b.g;
+  const db = a.b - b.b;
+
+  return Math.sqrt(dr * dr + dg * dg + db * db);
+}
+
+function getImageContentBounds(image) {
+  if (IMAGE_CONTENT_BOUNDS.has(image)) {
+    return IMAGE_CONTENT_BOUNDS.get(image);
+  }
+
+  const width = image.naturalWidth;
+  const height = image.naturalHeight;
+  const fallback = { sx: 0, sy: 0, sw: width, sh: height };
+
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+
+    if (!context) {
+      IMAGE_CONTENT_BOUNDS.set(image, fallback);
+      return fallback;
+    }
+
+    context.drawImage(image, 0, 0);
+    const pixels = context.getImageData(0, 0, width, height).data;
+    const corners = [
+      [0, 0],
+      [width - 1, 0],
+      [0, height - 1],
+      [width - 1, height - 1],
+    ]
+      .map(([x, y]) => {
+        const index = (y * width + x) * 4;
+        return {
+          r: pixels[index],
+          g: pixels[index + 1],
+          b: pixels[index + 2],
+          a: pixels[index + 3],
+        };
+      })
+      .filter((pixel) => pixel.a > 24);
+
+    const averageCorner =
+      corners.length >= 2
+        ? corners.reduce(
+            (sum, pixel) => ({
+              r: sum.r + pixel.r / corners.length,
+              g: sum.g + pixel.g / corners.length,
+              b: sum.b + pixel.b / corners.length,
+              a: sum.a + pixel.a / corners.length,
+            }),
+            { r: 0, g: 0, b: 0, a: 0 },
+          )
+        : null;
+    const hasFlatBackground =
+      averageCorner && corners.filter((pixel) => colorDistance(pixel, averageCorner) < 34).length >= 2;
+
+    let minX = width;
+    let minY = height;
+    let maxX = -1;
+    let maxY = -1;
+
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const index = (y * width + x) * 4;
+        const alpha = pixels[index + 3];
+
+        if (alpha <= 24) {
+          continue;
+        }
+
+        if (hasFlatBackground) {
+          const pixel = {
+            r: pixels[index],
+            g: pixels[index + 1],
+            b: pixels[index + 2],
+            a: alpha,
+          };
+
+          if (Math.abs(pixel.a - averageCorner.a) < 34 && colorDistance(pixel, averageCorner) < 34) {
+            continue;
+          }
+        }
+
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
+      }
+    }
+
+    if (maxX < minX || maxY < minY) {
+      IMAGE_CONTENT_BOUNDS.set(image, fallback);
+      return fallback;
+    }
+
+    const padding = Math.max(1, Math.round(Math.max(width, height) * 0.015));
+    const bounds = {
+      sx: Math.max(0, minX - padding),
+      sy: Math.max(0, minY - padding),
+      sw: Math.min(width, maxX + padding + 1) - Math.max(0, minX - padding),
+      sh: Math.min(height, maxY + padding + 1) - Math.max(0, minY - padding),
+    };
+
+    IMAGE_CONTENT_BOUNDS.set(image, bounds);
+    return bounds;
+  } catch {
+    IMAGE_CONTENT_BOUNDS.set(image, fallback);
+    return fallback;
+  }
+}
+
 function drawUnitImage(ctx, image, x, y, size, color) {
   if (!canDrawImage(image)) {
     return false;
   }
 
-  const half = size / 2;
+  const frameSize = size * 0.96;
+  const frameHalf = frameSize / 2;
+  const frameRadius = clamp(frameSize * 0.14, 4, 7);
+  const bounds = getImageContentBounds(image);
+  const maxImageSize = frameSize * 0.84;
+  const aspectRatio = bounds.sw / bounds.sh || 1;
+  const drawWidth = aspectRatio >= 1 ? maxImageSize : maxImageSize * aspectRatio;
+  const drawHeight = aspectRatio >= 1 ? maxImageSize / aspectRatio : maxImageSize;
 
   ctx.save();
   ctx.shadowColor = color;
   ctx.shadowBlur = 18;
-  ctx.beginPath();
-  ctx.arc(x, y, half * 0.74, 0, Math.PI * 2);
+  drawRoundRect(ctx, x - frameHalf, y - frameHalf, frameSize, frameSize, frameRadius);
   ctx.fillStyle = 'rgba(5, 1, 10, .62)';
   ctx.fill();
-  ctx.clip();
-  ctx.drawImage(image, x - half, y - half, size, size);
+  ctx.drawImage(
+    image,
+    bounds.sx,
+    bounds.sy,
+    bounds.sw,
+    bounds.sh,
+    x - drawWidth / 2,
+    y - drawHeight / 2,
+    drawWidth,
+    drawHeight,
+  );
   ctx.restore();
 
   ctx.save();
@@ -183,8 +317,7 @@ function drawUnitImage(ctx, image, x, y, size, color) {
   ctx.lineWidth = 2;
   ctx.shadowColor = color;
   ctx.shadowBlur = 10;
-  ctx.beginPath();
-  ctx.arc(x, y, half * 0.74, 0, Math.PI * 2);
+  drawRoundRect(ctx, x - frameHalf, y - frameHalf, frameSize, frameSize, frameRadius);
   ctx.stroke();
   ctx.restore();
 
