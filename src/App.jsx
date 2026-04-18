@@ -55,10 +55,6 @@ function refreshMs(seconds) {
   return Math.round(normalizeRefreshSeconds(seconds) * 1000);
 }
 
-function readMusicEnabled() {
-  return readStorage('datsol.musicEnabled', 'true') !== 'false';
-}
-
 function formatCoord(position) {
   return Array.isArray(position) ? `[${position[0]}, ${position[1]}]` : '-';
 }
@@ -159,7 +155,7 @@ function buildStats(arena, logs) {
 
 export default function App() {
   const [refreshSeconds, setRefreshSeconds] = useState(readRefreshSeconds);
-  const [musicEnabled, setMusicEnabled] = useState(readMusicEnabled);
+  const [musicEnabled, setMusicEnabled] = useState(true);
   const [arena, setArena] = useState(null);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -232,10 +228,6 @@ export default function App() {
   }, [refreshSeconds]);
 
   useEffect(() => {
-    writeStorage('datsol.musicEnabled', String(musicEnabled));
-  }, [musicEnabled]);
-
-  useEffect(() => {
     const audio = musicRef.current;
 
     if (!audio) {
@@ -244,6 +236,7 @@ export default function App() {
 
     audio.volume = 0.34;
     audio.loop = true;
+    audio.autoplay = true;
 
     const play = () => {
       if (!musicEnabled) {
@@ -254,6 +247,7 @@ export default function App() {
       audio.play().catch(() => {});
     };
 
+    audio.addEventListener('canplay', play);
     play();
 
     if (musicEnabled) {
@@ -262,6 +256,7 @@ export default function App() {
     }
 
     return () => {
+      audio.removeEventListener('canplay', play);
       window.removeEventListener('pointerdown', play);
       window.removeEventListener('keydown', play);
     };
@@ -404,7 +399,7 @@ export default function App() {
 
   return (
     <main className="app-shell">
-      <audio ref={musicRef} src={MUSIC_URL} preload="auto" />
+      <audio ref={musicRef} src={MUSIC_URL} preload="auto" autoPlay loop playsInline />
 
       <header className="topbar">
         <div className="brand-block">
