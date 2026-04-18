@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import buildUrl from './assets/build.png';
 import cockUrl from './assets/cock.png';
 import mountainUrl from './assets/mountain.png';
 import palmUrl from './assets/palm.png';
@@ -34,6 +35,7 @@ const MAX_DPR = 1.5;
 const LABEL_ZOOM = 9;
 
 const UNIT_IMAGE_URLS = {
+  construction: buildUrl,
   enemy: cockUrl,
   beaver: wolfUrl,
   main: tigerUrl,
@@ -382,7 +384,7 @@ function drawTerraformCell(ctx, screen, zoom, progress) {
   ctx.restore();
 }
 
-function drawConstruction(ctx, item, camera, width, height, time) {
+function drawConstruction(ctx, item, camera, width, height, time, unitImages) {
   const screen = worldToScreen(item.position, camera, width, height);
   const zoom = camera.zoom;
   const size = clamp(zoom * 0.78, 9, 34);
@@ -409,7 +411,20 @@ function drawConstruction(ctx, item, camera, width, height, time) {
   ctx.fillRect(screen.x - size / 2, screen.y + size * 0.62, size, 4);
   ctx.fillStyle = COLORS.construction;
   ctx.fillRect(screen.x - size / 2, screen.y + size * 0.62, size * progress, 4);
-  drawBadge(ctx, 'BLD', screen.x, screen.y, COLORS.construction, clamp(zoom * 0.055, 0.9, 1.25));
+  const imageSize = clamp(zoom * 1.36, 24, 50);
+  const imageDrawn = drawUnitImage(
+    ctx,
+    unitImages?.construction,
+    screen.x,
+    screen.y,
+    imageSize,
+    COLORS.construction,
+  );
+
+  if (!imageDrawn) {
+    drawBadge(ctx, 'BLD', screen.x, screen.y, COLORS.construction, clamp(zoom * 0.055, 0.9, 1.25));
+  }
+
   drawCaption(ctx, 'Build', screen.x, screen.y + clamp(zoom * 0.95, 16, 28), zoom, COLORS.construction);
   ctx.restore();
 }
@@ -824,7 +839,7 @@ function drawArena(
   }
 
   for (const item of arena?.construction ?? []) {
-    drawConstruction(ctx, item, camera, width, height, time);
+    drawConstruction(ctx, item, camera, width, height, time, unitImages);
   }
 
   for (const item of arena?.beavers ?? []) {
